@@ -1,0 +1,55 @@
+name: Daily AI & Cloud Digest
+
+on:
+  schedule:
+    # 00:00 UTC = 07:00 SA giờ Việt Nam (UTC+7)
+    - cron: "0 0 * * *"
+  workflow_dispatch:  # Cho phép chạy thủ công từ GitHub UI
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest
+        env:
+          # --- Người nhận ---
+          RECIPIENT: ${{ secrets.RECIPIENT }}
+          CC: ${{ secrets.CC }}
+          BCC: ${{ secrets.BCC }}
+
+          # --- Email (Gmail SMTP) ---
+          EMAIL_METHOD: smtp
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "465"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+
+          # --- Anthropic Claude (primary) ---
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: "claude-haiku-4-5-20251001"
+
+          # --- Groq (fallback) ---
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: "llama-3.3-70b-versatile"
+
+          # --- Tuỳ chỉnh ---
+          MAX_ITEMS_PER_SECTION: "6"
+          LOOKBACK_HOURS: "48"
+
+          # Đặt timezone về Việt Nam để should_run_now() hoạt động đúng
+          TZ: Asia/Ho_Chi_Minh
+        run: python ai_cloud_digest.py --force

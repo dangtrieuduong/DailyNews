@@ -1,0 +1,19 @@
+# Secrets — KHÔNG push lên GitHub
+.env
+
+# State & logs
+last_run.txt
+log.txt
+
+# Generated digests
+digest-*.html
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
