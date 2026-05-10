@@ -2,18 +2,31 @@ name: Daily AI & Cloud Digest
 
 on:
   schedule:
-    # 00:00 UTC = 07:00 SA giờ Việt Nam (UTC+7)
-    - cron: "0 0 * * *"
+    - cron: "0 0 * * *"   # 07:00 SA giờ VN — lần chạy chính
+    - cron: "0 1 * * *"   # 08:00 SA giờ VN — fallback nếu 7AM thất bại
+    - cron: "0 2 * * *"   # 09:00 SA giờ VN — fallback cuối
   workflow_dispatch:  # Cho phép chạy thủ công từ GitHub UI
 
 jobs:
   send-digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      TZ: Asia/Ho_Chi_Minh
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Get today's date (giờ VN)
+        id: date
+        run: echo "today=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Restore last_run state (tránh gửi email 2 lần/ngày)
+        uses: actions/cache@v4
+        with:
+          path: last_run.txt
+          key: last-run-${{ steps.date.outputs.today }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run digest
+      - name: Run digest (tự retry 3 lần nếu lỗi)
         env:
           # --- Người nhận ---
           RECIPIENT: ${{ secrets.RECIPIENT }}
@@ -49,7 +62,15 @@ jobs:
           # --- Tuỳ chỉnh ---
           MAX_ITEMS_PER_SECTION: "6"
           LOOKBACK_HOURS: "48"
-
-          # Đặt timezone về Việt Nam để should_run_now() hoạt động đúng
-          TZ: Asia/Ho_Chi_Minh
-        run: python ai_cloud_digest.py
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Attempt $attempt/3 ==="
+            python ai_cloud_digest.py && break
+            if [ $attempt -lt 3 ]; then
+              echo "Thất bại, chờ 5 phút rồi thử lại..."
+              sleep 300
+            else
+              echo "Đã thử 3 lần đều thất bại."
+              exit 1
+            fi
+          done
