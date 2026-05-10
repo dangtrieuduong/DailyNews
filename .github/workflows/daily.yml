@@ -52,4 +52,4 @@ jobs:
 
           # Đặt timezone về Việt Nam để should_run_now() hoạt động đúng
           TZ: Asia/Ho_Chi_Minh
-        run: python ai_cloud_digest.py --force
+        run: python ai_cloud_digest.py
